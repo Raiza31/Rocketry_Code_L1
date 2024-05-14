@@ -40,6 +40,7 @@ UMS3 ts;
 double zeroAlt = 0;
 bool arm = false;
 bool runOnce = true;
+bool deployed = false;
 #define transistor 6
 
 void setup() {
@@ -131,7 +132,8 @@ void setup() {
     }
 
     if (!dataFile) {
-        Serial.println("error opening Datalog");
+        //Serial.println("error opening Datalog");
+        ts.setPixelColor( 220, 173, 247);
         while(1);
     }
 
@@ -151,15 +153,19 @@ void setup() {
     headerString += "GyroY";
     headerString += "\t";
     headerString += "GyroZ";
+    headerString += "\t";
+    headerString += "Parachute";
 
     dataFile.println(headerString);
     dataFile.flush();
 
-    for(int i = 0; i <= 70; i++){
+    zeroAlt = 0;
+
+    for(int i = 0; i <= 10; i++){
         zeroAlt = zeroAlt + bmp.readAltitude(101500);
     }
     
-    zeroAlt = zeroAlt/70;
+    zeroAlt = (zeroAlt/10);
     digitalWrite(transistor, LOW);
 
     ts.setPixelColor( 0, 255, 0);//green
@@ -183,7 +189,7 @@ void loop() {
     // read raw accel/gyro measurements from device
     accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
 
-    Serial.println(bmp.readAltitude(101500) - zeroAlt);
+    //Serial.println(bmp.readAltitude(101500) - zeroAlt);
     
     dataString += String(millis()).c_str();
     dataString += "\t";
@@ -200,21 +206,30 @@ void loop() {
     dataString += String(gy).c_str();
     dataString += "\t";
     dataString += String(gz).c_str();
-    dataFile.println(dataString);
-    dataFile.flush();
-
-    if(!runOnce){
-        if(bmp.readAltitude(101500)-zeroAlt <= 0 && arm){
-            delay(1);
+    
+    if(!runOnce && !deployed){
+        if((bmp.readAltitude(101500) - zeroAlt) <= 40 && arm){
+            deployed = true;
+            dataString += "\t";
+            dataString += String("Deployed").c_str();
             digitalWrite(transistor, HIGH);
         }
     }
     
     if(runOnce){
-        if(bmp.readAltitude(101500)-zeroAlt > 0){
+        if((bmp.readAltitude(101500) - zeroAlt) > 50){
             arm = true;
             runOnce = false;
-            //Serial.println("true");
+            dataString += "\t"; 
+            dataString += String("Armed").c_str();
+        }
+        else{
+            dataString += "\t"; 
+            dataString += String("Disarmed").c_str();
         }
     }
+
+    dataFile.println(dataString);
+    dataFile.flush();
+
 }
